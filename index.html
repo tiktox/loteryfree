@@ -114,6 +114,11 @@
             color: #6c757d;
         }
         
+        .zero-frequency {
+            background-color: #f1f1f1;
+            opacity: 0.7;
+        }
+        
         .search-wrapper {
             display: flex;
             justify-content: center;
@@ -123,6 +128,20 @@
         
         .search-wrapper input {
             width: 150px;
+        }
+        
+        .filter-options {
+            display: flex;
+            justify-content: center;
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+        
+        .checkbox-label {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            cursor: pointer;
         }
         
         @media (max-width: 600px) {
@@ -135,6 +154,11 @@
             }
             
             .search-wrapper {
+                flex-direction: column;
+                align-items: center;
+            }
+            
+            .filter-options {
                 flex-direction: column;
                 align-items: center;
             }
@@ -153,6 +177,13 @@
         <div class="buttons">
             <button id="day-btn">Buscar por día</button>
             <button id="all-btn">Ver data completa</button>
+        </div>
+        
+        <div class="filter-options">
+            <label class="checkbox-label">
+                <input type="checkbox" id="show-zeros" checked>
+                Mostrar números sin apariciones
+            </label>
         </div>
         
         <div class="results">
@@ -1817,19 +1848,31 @@
 { fecha: "30-12", numeros: ['76', '36', '54'] },
 { fecha: "29-12", numeros: ['77', '89', '23'] },
 { fecha: "28-12", numeros: ['46', '00', '89'] },
-            // Puedes agregar más datos según sea necesario
+// Puedes agregar más datos según sea necesario
         ];
         
-        // Función para contar frecuencias
-        function contarFrecuencias(numeros) {
+        // Generar todos los posibles números del 00 al 99
+        function generarTodosLosNumeros() {
+            const todosLosNumeros = [];
+            for(let i = 0; i <= 99; i++) {
+                todosLosNumeros.push(i.toString().padStart(2, '0'));
+            }
+            return todosLosNumeros;
+        }
+        
+        // Función para contar frecuencias incluyendo todos los números posibles
+        function contarFrecuenciasCompletas(numeros) {
             const frecuencias = {};
             
+            // Inicializar todos los números del 00 al 99 con frecuencia 0
+            const todosLosNumeros = generarTodosLosNumeros();
+            todosLosNumeros.forEach(num => {
+                frecuencias[num] = 0;
+            });
+            
+            // Actualizar frecuencias con los números existentes
             numeros.forEach(num => {
-                if (frecuencias[num]) {
-                    frecuencias[num]++;
-                } else {
-                    frecuencias[num] = 1;
-                }
+                frecuencias[num]++;
             });
             
             return frecuencias;
@@ -1853,6 +1896,7 @@
         function mostrarResultados(titulo, frecuenciasOrdenadas) {
             const resultTitle = document.getElementById('result-title');
             const resultContent = document.getElementById('result-content');
+            const mostrarCeros = document.getElementById('show-zeros').checked;
             
             resultTitle.textContent = titulo;
             resultContent.innerHTML = '';
@@ -1867,8 +1911,19 @@
             grid.className = 'numbers-grid';
             
             frecuenciasOrdenadas.forEach(item => {
+                // Si no queremos mostrar ceros y la frecuencia es 0, saltamos este ítem
+                if (!mostrarCeros && item.frecuencia === 0) {
+                    return;
+                }
+                
                 const div = document.createElement('div');
                 div.className = 'number-item';
+                
+                // Agregar clase especial para los números con frecuencia 0
+                if (item.frecuencia === 0) {
+                    div.classList.add('zero-frequency');
+                }
+                
                 div.innerHTML = `
                     <span class="number">${item.numero}</span>
                     <span class="frequency">Frecuencia: ${item.frecuencia}</span>
@@ -1888,19 +1943,33 @@
                 // Obtener todos los números de los días que coinciden
                 const numerosDia = datosFiltrados.flatMap(item => item.numeros);
                 // Contar frecuencias y ordenar
-                const frecuencias = contarFrecuencias(numerosDia);
+                const frecuencias = contarFrecuenciasCompletas(numerosDia);
                 return ordenarPorFrecuencia(frecuencias);
             }
             
-            return [];
+            // Si no hay datos, devolver todos los números con frecuencia 0
+            const frecuenciasVacias = contarFrecuenciasCompletas([]);
+            return ordenarPorFrecuencia(frecuenciasVacias);
         }
         
         // Función para obtener todos los datos
         function obtenerTodosLosDatos() {
             const todosLosNumeros = numerosData.flatMap(item => item.numeros);
-            const frecuencias = contarFrecuencias(todosLosNumeros);
+            const frecuencias = contarFrecuenciasCompletas(todosLosNumeros);
             return ordenarPorFrecuencia(frecuencias);
         }
+        
+        // Manejar cambio en checkbox de mostrar ceros
+        document.getElementById('show-zeros').addEventListener('change', () => {
+            // Volver a renderizar los resultados actuales
+            if (document.getElementById('result-title').textContent !== 'Selecciona una opción') {
+                if (document.getElementById('result-title').textContent.includes('día')) {
+                    document.getElementById('day-btn').click();
+                } else {
+                    document.getElementById('all-btn').click();
+                }
+            }
+        });
         
         // Manejar clic en "Buscar por día"
         document.getElementById('day-btn').addEventListener('click', () => {
